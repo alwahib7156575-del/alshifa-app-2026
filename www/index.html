@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b6b5b">
+<link rel="manifest" href="manifest.webmanifest">
+<title>صيدلية الشفاء</title>
+<style>
+:root{--p:#0b6b5b;--bg:#f4f7f8;--card:#fff;--text:#17212b;--muted:#6b7785;--danger:#b42318}
+*{box-sizing:border-box}body{margin:0;font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text)}
+header{background:linear-gradient(135deg,#0b6b5b,#15947d);color:#fff;padding:20px 16px 28px}
+header h1{margin:0 0 6px;font-size:25px}header p{margin:0;opacity:.9}
+main{max-width:980px;margin:-14px auto 30px;padding:0 14px}
+.card{background:var(--card);border-radius:16px;box-shadow:0 8px 24px #173b3220;padding:16px;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.stat{padding:12px;border:1px solid #e7ecef;border-radius:12px}
+.stat b{display:block;font-size:21px;color:var(--p)}.stat span{font-size:12px;color:var(--muted)}
+.row{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px}
+input,select,button{font:inherit;border-radius:10px;padding:11px;border:1px solid #d7dfe3}
+button{background:var(--p);color:white;border:0;cursor:pointer}button.secondary{background:#e8f3f0;color:var(--p)}
+table{width:100%;border-collapse:collapse;margin-top:12px}th,td{padding:10px;border-bottom:1px solid #edf0f2;text-align:right;font-size:14px}
+.badge{padding:4px 8px;border-radius:999px;font-size:12px;background:#e8f3f0;color:var(--p)}
+.badge.due{background:#fff1f0;color:var(--danger)}
+.actions{display:flex;gap:6px}.actions button{padding:6px 9px;font-size:12px}.empty{text-align:center;color:var(--muted);padding:28px}
+@media(max-width:700px){.grid{grid-template-columns:1fr 1fr}.row{grid-template-columns:1fr}.card{border-radius:13px}th:nth-child(4),td:nth-child(4){display:none}}
+</style>
+</head>
+<body>
+<header><h1>صيدلية الشفاء</h1><p>إدارة مديونيات موظفي المصنع</p></header>
+<main>
+<section class="card">
+  <div class="grid">
+    <div class="stat"><b id="count">0</b><span>عدد العمليات</span></div>
+    <div class="stat"><b id="total">0</b><span>إجمالي المديونية</span></div>
+    <div class="stat"><b id="openCount">0</b><span>غير مصفاة</span></div>
+    <div class="stat"><b id="paidCount">0</b><span>تمت التصفية</span></div>
+  </div>
+</section>
+
+<section class="card">
+  <h3>إضافة مديونية</h3>
+  <form id="form" class="row">
+    <input id="code" required placeholder="رقم كود الموظف">
+    <input id="name" required placeholder="اسم الموظف">
+    <input id="amount" required type="number" min="1" step="0.01" placeholder="المبلغ">
+    <button type="submit">إضافة</button>
+  </form>
+</section>
+
+<section class="card">
+  <div class="row" style="grid-template-columns:1fr auto auto">
+    <input id="search" placeholder="بحث بالاسم أو الكود">
+    <button class="secondary" id="exportBtn">تصدير CSV</button>
+    <button class="secondary" id="clearPaid">حذف المصفى</button>
+  </div>
+  <div style="overflow:auto">
+  <table>
+    <thead><tr><th>الكود</th><th>الموظف</th><th>المبلغ</th><th>التاريخ</th><th>الحالة</th><th>إجراء</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+  </div>
+</section>
+</main>
+<script>
+const KEY='alshifa_debts_v1';
+let data=JSON.parse(localStorage.getItem(KEY)||'[]');
+const $=id=>document.getElementById(id);
+function save(){localStorage.setItem(KEY,JSON.stringify(data));render()}
+function money(v){return Number(v).toLocaleString('ar-YE',{maximumFractionDigits:2})}
+function render(){
+ const q=$('search').value.trim().toLowerCase();
+ const list=data.filter(x=>x.name.toLowerCase().includes(q)||x.code.toLowerCase().includes(q));
+ $('rows').innerHTML=list.length?list.map(x=>`<tr>
+ <td>${x.code}</td><td>${x.name}</td><td>${money(x.amount)}</td><td>${x.date}</td>
+ <td><span class="badge ${x.paid?'':'due'}">${x.paid?'تمت التصفية':'غير مصفاة'}</span></td>
+ <td><div class="actions"><button onclick="togglePaid('${x.id}')">${x.paid?'إلغاء التصفية':'تصفية'}</button><button style="background:#b42318" onclick="removeItem('${x.id}')">حذف</button></div></td>
+ </tr>`).join(''):`<tr><td colspan="6" class="empty">لا توجد عمليات مسجلة</td></tr>`;
+ $('count').textContent=data.length;
+ $('total').textContent=money(data.reduce((s,x)=>s+Number(x.amount),0));
+ $('openCount').textContent=data.filter(x=>!x.paid).length;
+ $('paidCount').textContent=data.filter(x=>x.paid).length;
+}
+window.togglePaid=id=>{const x=data.find(i=>i.id===id);if(x){x.paid=!x.paid;save()}}
+window.removeItem=id=>{if(confirm('حذف العملية؟')){data=data.filter(i=>i.id!==id);save()}}
+$('form').addEventListener('submit',e=>{
+ e.preventDefault();
+ data.unshift({id:Date.now().toString(),code:$('code').value.trim(),name:$('name').value.trim(),amount:Number($('amount').value),date:new Date().toLocaleString('ar-YE'),paid:false});
+ e.target.reset();save();
+});
+$('search').addEventListener('input',render);
+$('clearPaid').onclick=()=>{if(confirm('حذف جميع العمليات المصفاة؟')){data=data.filter(x=>!x.paid);save()}};
+$('exportBtn').onclick=()=>{
+ const rows=[['الكود','الاسم','المبلغ','التاريخ','الحالة'],...data.map(x=>[x.code,x.name,x.amount,x.date,x.paid?'تمت التصفية':'غير مصفاة'])];
+ const csv='\uFEFF'+rows.map(r=>r.map(v=>`"${String(v).replaceAll('"','""')}"`).join(',')).join('\n');
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='alshifa-debts.csv';a.click();
+};
+if('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js');
+render();
+</script>
+</body>
+</html>

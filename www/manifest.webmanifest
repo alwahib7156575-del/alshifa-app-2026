@@ -1,0 +1,11 @@
+{
+  "name": "صيدلية الشفاء",
+  "short_name": "الشفاء",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f6f8fb",
+  "theme_color": "#0b6b5b",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": []
+}
